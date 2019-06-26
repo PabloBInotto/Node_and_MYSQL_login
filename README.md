@@ -1,2 +1,2 @@
 # xrpay_login
-Login using node and mysql
+Simple login app using node, passaport and mysql
