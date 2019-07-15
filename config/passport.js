@@ -1,10 +1,11 @@
+'use strict';
 var LocalStrategy = require("passport-local").Strategy;
 
 var mysql = require('mysql');
 var bcrypt = require('bcrypt-nodejs');
 var dbconfig = require('./database');
 var connection = mysql.createConnection(dbconfig.connection);
-
+const nodemailer = require('nodemailer');
 
 module.exports = function(passport) {
 
@@ -32,6 +33,7 @@ module.exports = function(passport) {
                 sql +=" `password` varchar(255) COLLATE utf8_unicode_ci NOT NULL,";
                 sql +=" `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,";
                 sql +=" `modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,";
+                sql +="`check_acc` INT(1) NOT NULL DEFAULT '0',";
                 sql +=" PRIMARY KEY (`id`)";
                 sql +=")";
 
@@ -86,6 +88,51 @@ connection.query('USE xrpay');
 
       newUserMysql.id = result.insertId;
       console.log('\x1b[32m%s\x1b[0m',result.insertId);
+
+            // Create a SMTP transport object
+      const transport = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // use SSL
+        auth: {
+            user: 'your@gmail.com',
+            pass: 'your_pw'
+        }
+    });
+
+    // Message object
+      var message = {
+
+      // sender info
+      from: 'administrator@ilpaw.com',
+
+      // Comma separated list of recipients
+      to: newUserMysql.username,
+
+      // Subject of the message
+      subject: 'Teste email XRP', //'Nodemailer is unicode friendly ✔', 
+
+      // plaintext body
+      //text: req.query.text //'Hello to myself!',
+
+      // HTML body
+        html:'<p><b>Hello</b> '+ newUserMysql.username +' ! </p>'+
+        '<p>Click <a href="http://localhost:5000/checkAccount?id='+result.insertId+'"> here </a> to check your ILPaw account</p>'
+      };
+
+      console.log('Sending Mail');
+      transport.sendMail(message, function(error){
+      if(error){
+      console.log('Error occured');
+      console.log(error.message);
+      return;
+      }
+      console.log('Message sent successfully!');
+
+      // if you don't want to use this transport object anymore, uncomment    
+      //transport.close(); // close the connection pool
+      });
+
       return done(null, newUserMysql);
       });
     }
@@ -107,6 +154,9 @@ connection.query('USE xrpay');
      return done(err);
     if(!rows.length){
      return done(null, false, req.flash('loginMessage', 'No User Found'));
+    }
+    if(rows[0].check_acc == 0){
+      return done(null, false, req.flash('loginMessage', 'Please check your email to validate your account!'));
     }
     if(!bcrypt.compareSync(password, rows[0].password))
      return done(null, false, req.flash('loginMessage', 'Wrong Password'));
