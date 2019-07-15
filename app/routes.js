@@ -1,4 +1,9 @@
 module.exports = function(app, passport) {
+    var mysql = require('mysql');
+    var dbconfig = require('./../config/database');
+    var connection = mysql.createConnection(dbconfig.connection);
+    connection.query('USE xrpay')
+
  app.get('/', function(req, res){
   res.render('index.ejs');
  });
@@ -26,16 +31,35 @@ module.exports = function(app, passport) {
  });
 
  app.post('/signup', passport.authenticate('local-signup', {
-  successRedirect: '/profile',
+  successRedirect: '/new',
   failureRedirect: '/signup',
   failureFlash: true
  }));
+
+ app.get('/new', function(req, res){
+    res.render('new.ejs');
+   });
 
  app.get('/profile', isLoggedIn, function(req, res){
   res.render('profile.ejs', {
    user:req.user
   });
  });
+
+ app.get('/checkAccount', function(req, res){
+     var uid = req.query.id;
+     console.log(uid)
+
+
+     var sql = "UPDATE users SET check_acc = '1' WHERE id = '" +uid+ "'";
+        connection.query(sql, function (err, result) {
+            if (err) throw err;
+            console.log(result.affectedRows + " record(s) updated");
+            res.redirect('/login');
+        });    
+     });
+
+ 
 
  app.get('/logout', function(req,res){
   req.logout();
